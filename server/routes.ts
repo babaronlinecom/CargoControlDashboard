@@ -550,16 +550,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const invoiceId = parseInt(req.params.id);
       
-      // Get invoice details with original database column names
-      // We'll send this directly to the PDF generator since it now expects snake_case fields
-      const invoiceResult = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
+      // Get invoice details with snake_case database column names
+      // Make sure we select all fields needed by the PDF generator
+      const invoiceResult = await db.select({
+        id: invoices.id,
+        invoice_number: invoices.invoiceNumber,
+        awb_number: invoices.awbNumber,
+        status: invoices.status,
+        issue_date: invoices.issueDate,
+        due_date: invoices.dueDate,
+        total_amount: invoices.totalAmount,
+        currency: invoices.currency,
+        customer_name: invoices.customerName,
+        customer_email: invoices.customerEmail,
+        customer_phone: invoices.customerPhone,
+        notes: invoices.notes,
+        billing_address: invoices.billingAddress,
+        shipping_address: invoices.shippingAddress,
+        pdf_url: invoices.pdfUrl
+      }).from(invoices).where(eq(invoices.id, invoiceId));
+      
       if (invoiceResult.length === 0) {
         return res.status(404).json({ message: "Invoice not found" });
       }
       const invoice = invoiceResult[0];
       
-      // Get invoice items with original database column names
-      const invoiceItemsResult = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+      // Get invoice items with snake_case column names
+      const invoiceItemsResult = await db.select({
+        id: invoiceItems.id,
+        invoice_id: invoiceItems.invoiceId,
+        description: invoiceItems.description,
+        quantity: invoiceItems.quantity,
+        unit_price: invoiceItems.unitPrice,
+        tax_rate: invoiceItems.taxRate,
+        discount: invoiceItems.discount,
+        line_total: invoiceItems.lineTotal
+      }).from(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
       
       // Import PDF generator dynamically
       const { generateInvoicePdf } = await import('./services/pdfGenerator');
@@ -570,7 +596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update invoice with PDF URL if needed
       if (!invoice.pdf_url) {
         await db.update(invoices)
-          .set({ pdf_url: pdfUrl })
+          .set({ pdfUrl: pdfUrl })
           .where(eq(invoices.id, invoiceId));
       }
       

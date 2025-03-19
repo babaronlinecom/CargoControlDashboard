@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { Invoice, InvoiceItem } from '@shared/schema';
 import { format } from 'date-fns';
+import JsBarcode from 'jsbarcode';
+import { createCanvas } from 'canvas';
 
 // Type from schema.ts, but with snake_case database columns mapped to camelCase
 // This ensures our PDF generator works correctly with the DB column names
@@ -50,9 +52,24 @@ const formatCurrency = (amount: number, currency = 'USD') => {
   }).format(amount);
 };
 
-// Generate barcode data (for use with jsbarcode in frontend)
-const generateBarcodeData = (invoiceNumber: string) => {
-  return invoiceNumber;
+// Generate barcode image in base64 format using JsBarcode
+const generateBarcodeBase64 = (codeValue: string): string => {
+  // Create a canvas for the barcode
+  const canvas = createCanvas(400, 100);
+  
+  // Generate the barcode on the canvas
+  JsBarcode(canvas, codeValue, {
+    format: 'CODE128',
+    width: 2,
+    height: 80,
+    displayValue: true,
+    fontSize: 18,
+    margin: 10,
+    textMargin: 5
+  });
+  
+  // Convert the canvas to a base64 string
+  return canvas.toDataURL('image/png');
 };
 
 export const generateInvoicePdf = async (
@@ -280,11 +297,35 @@ export const generateInvoicePdf = async (
     doc.fontSize(10).font('Helvetica').text(invoice.notes, 50, currentY, { width: 500 });
   }
 
-  // Add AWB barcode info at the bottom
-  doc.fontSize(10).font('Helvetica').text(`AWB: ${invoice.awb_number}`, {
+  // Add AWB barcode at the bottom
+  currentY += invoice.notes ? 40 : 20;
+  
+  doc.fontSize(12).font('Helvetica-Bold').text('AWB Tracking Number:', {
     align: 'center',
   });
-
+  
+  // Generate barcode for AWB number
+  const barcodeData = generateBarcodeBase64(invoice.awb_number);
+  
+  // Add the barcode image
+  if (currentY > doc.page.height - 150) {
+    doc.addPage();
+    currentY = 50;
+  }
+  
+  // Extract the base64 data (remove the data:image/png;base64, prefix)
+  const base64Data = barcodeData.split(',')[1];
+  
+  // Add the barcode image centered in the document
+  // Calculate the center position horizontally
+  const pageWidth = doc.page.width;
+  const imageWidth = 300; // Estimated width of the barcode image
+  const xPosition = (pageWidth - imageWidth) / 2;
+  
+  doc.image(Buffer.from(base64Data, 'base64'), xPosition, currentY, {
+    width: imageWidth,
+  });
+  
   // Finalize PDF and end stream
   doc.end();
 
