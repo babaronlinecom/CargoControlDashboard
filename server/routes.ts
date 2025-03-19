@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import axios from "axios";
@@ -546,12 +546,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/invoices/:id/pdf", async (req, res) => {
     try {
       const invoiceId = parseInt(req.params.id);
-      const pdfUrl = await storage.generateInvoicePdf(invoiceId);
+      
+      // Get invoice details
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Get invoice items
+      const invoiceItems = await storage.getInvoiceItems(invoiceId);
+      
+      // Import PDF generator dynamically
+      const { generateInvoicePdf } = await import('./services/pdfGenerator');
+      
+      // Generate PDF
+      const pdfUrl = await generateInvoicePdf(invoice, invoiceItems);
+      
+      // Update invoice with PDF URL
+      await storage.updateInvoiceStatus(invoiceId, invoice.status); // Just to update the pdfUrl
+      
       res.json({ pdfUrl });
     } catch (error) {
+      console.error("PDF generation error:", error);
       res.status(500).json({ message: "Failed to generate invoice PDF" });
     }
   });
+  
+  // Serve static files from public directory
+  app.use('/invoices', (req, res, next) => {
+    // Set headers to prevent caching for PDFs
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  }, express.static('public/invoices'));
 
   // Financial metrics
   app.get("/api/financial/metrics", async (req, res) => {
