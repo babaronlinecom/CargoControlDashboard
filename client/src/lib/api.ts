@@ -108,7 +108,11 @@ export interface LocationRequest {
  */
 export async function calculateShippingRates(request: CalculateRateRequest) {
   try {
-    const response = await apiRequest("POST", "/api/aramex/calculate-rates", request);
+    const response = await apiRequest(
+      "POST",
+      "/api/aramex/calculate-rates",
+      request
+    );
     return response.json();
   } catch (error) {
     console.error("Failed to calculate shipping rates:", error);
@@ -121,7 +125,7 @@ export async function calculateShippingRates(request: CalculateRateRequest) {
  */
 export async function createShipment(shipmentData: CreateShipmentRequest) {
   try {
-    const response = await apiRequest("POST", "/api/aramex/shipments/create", shipmentData);
+    const response = await apiRequest("POST", "/api/shipments", shipmentData);
     return response.json();
   } catch (error) {
     console.error("Failed to create shipment:", error);
@@ -160,7 +164,11 @@ export async function findServiceLocations(request: LocationRequest) {
  */
 export async function schedulePickup(pickupData: any) {
   try {
-    const response = await apiRequest("POST", "/api/aramex/pickups/create", pickupData);
+    const response = await apiRequest(
+      "POST",
+      "/api/aramex/pickups/create",
+      pickupData
+    );
     return response.json();
   } catch (error) {
     console.error("Failed to schedule pickup:", error);
@@ -171,9 +179,16 @@ export async function schedulePickup(pickupData: any) {
 /**
  * Cancel a shipment through the Aramex API
  */
-export async function cancelShipment(cancelData: { shipmentNumber: string; reason: string }) {
+export async function cancelShipment(cancelData: {
+  shipmentNumber: string;
+  reason: string;
+}) {
   try {
-    const response = await apiRequest("POST", "/api/aramex/shipments/cancel", cancelData);
+    const response = await apiRequest(
+      "POST",
+      "/api/aramex/shipments/cancel",
+      cancelData
+    );
     return response.json();
   } catch (error) {
     console.error("Failed to cancel shipment:", error);
@@ -205,18 +220,18 @@ export async function uploadRateFile(file: File) {
   try {
     const formData = new FormData();
     formData.append("file", file);
-    
+
     const response = await fetch("/api/rates/upload", {
       method: "POST",
       body: formData,
       credentials: "include",
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || response.statusText);
     }
-    
+
     return response.json();
   } catch (error) {
     console.error("Failed to upload rate file:", error);
@@ -242,7 +257,11 @@ export async function getRateFiles() {
  */
 export async function getRateEntries(fileId: number) {
   try {
-    const response = await apiRequest("GET", `/api/rates/entries/${fileId}`, undefined);
+    const response = await apiRequest(
+      "GET",
+      `/api/rates/entries/${fileId}`,
+      undefined
+    );
     return response.json();
   } catch (error) {
     console.error("Failed to get rate entries:", error);
@@ -266,9 +285,16 @@ export async function updateRateEntries(rates: any[]) {
 /**
  * Get shipment analytics data
  */
-export async function getShipmentAnalytics(timeRange: string, chartType: string) {
+export async function getShipmentAnalytics(
+  timeRange: string,
+  chartType: string
+) {
   try {
-    const response = await apiRequest("GET", `/api/analytics/shipments/trends?timeRange=${timeRange}&chartType=${chartType}`, undefined);
+    const response = await apiRequest(
+      "GET",
+      `/api/analytics/shipments/trends?timeRange=${timeRange}&chartType=${chartType}`,
+      undefined
+    );
     return response.json();
   } catch (error) {
     console.error("Failed to get shipment analytics:", error);
@@ -281,7 +307,11 @@ export async function getShipmentAnalytics(timeRange: string, chartType: string)
  */
 export async function getShipmentStatistics(timeRange: string) {
   try {
-    const response = await apiRequest("GET", `/api/analytics/statistics?timeRange=${timeRange}`, undefined);
+    const response = await apiRequest(
+      "GET",
+      `/api/analytics/statistics?timeRange=${timeRange}`,
+      undefined
+    );
     return response.json();
   } catch (error) {
     console.error("Failed to get shipment statistics:", error);

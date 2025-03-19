@@ -77,6 +77,10 @@ interface ApiStatus {
   responseTime: number;
 }
 
+import { AramexRateCalculator } from '@/components/aramex/rate-calculator';
+import { AramexTracking } from '@/components/aramex/tracking';
+import { AramexLocationServices } from '@/components/aramex/location-services';
+
 export default function ApiIntegrations() {
   const [location, setLocation] = useLocation();
   const params = new URLSearchParams(location.split("?")[1]);
@@ -276,7 +280,7 @@ export default function ApiIntegrations() {
               
               {/* Rate Calculator Tab */}
               <TabsContent value="rate-calculator">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <AramexRateCalculator />
                   <Card>
                     <CardHeader>
                       <CardTitle>Calculate Shipping Rates</CardTitle>
@@ -449,7 +453,6 @@ export default function ApiIntegrations() {
                       )}
                     </CardContent>
                   </Card>
-                </div>
               </TabsContent>
               
               {/* Shipping Services Tab */}
@@ -696,7 +699,7 @@ export default function ApiIntegrations() {
               
               {/* Tracking Tab */}
               <TabsContent value="tracking">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <AramexTracking />
                   <Card>
                     <CardHeader>
                       <CardTitle>Track Shipment</CardTitle>
@@ -772,7 +775,7 @@ export default function ApiIntegrations() {
               
               {/* Location Services Tab */}
               <TabsContent value="location-services">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <AramexLocationServices />
                   <Card>
                     <CardHeader>
                       <CardTitle>Find Aramex Locations</CardTitle>
