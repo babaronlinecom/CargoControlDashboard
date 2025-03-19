@@ -1,8 +1,10 @@
 
 import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TrackingForm } from "@/components/api-integration/tracking-form";
+import { LocationServices } from "@/components/api-integration/location-services";
 
 export default function ApiIntegrations() {
   const [activeTab, setActiveTab] = useState("tracking");
@@ -13,12 +15,16 @@ export default function ApiIntegrations() {
         <Card>
           <CardHeader>API Services</CardHeader>
           <CardContent>
-            <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="tracking">Tracking</TabsTrigger>
+                <TabsTrigger value="location-services">Location Services</TabsTrigger>
+              </TabsList>
               <TabsContent value="tracking">
-                {/* Tracking Content */}
+                <TrackingForm />
               </TabsContent>
               <TabsContent value="location-services">
-                {/* Location Services Content */}
+                <LocationServices />
               </TabsContent>
             </Tabs>
           </CardContent>
