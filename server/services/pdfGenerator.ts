@@ -56,15 +56,15 @@ const generateBarcodeData = (invoiceNumber: string) => {
 };
 
 export const generateInvoicePdf = async (
-  invoice: Invoice,
-  invoiceItems: InvoiceItem[],
+  invoice: InvoiceWithSnakeCase,
+  invoiceItems: InvoiceItemWithSnakeCase[],
 ): Promise<string> => {
   // Create PDF directory
   const pdfDir = path.join(process.cwd(), 'public', 'invoices');
   ensureDirectoryExists(pdfDir);
 
   // Create filename
-  const filename = `invoice-${invoice.invoiceNumber.replace(/\//g, '-')}.pdf`;
+  const filename = `invoice-${invoice.invoice_number.replace(/\//g, '-')}.pdf`;
   const filePath = path.join(pdfDir, filename);
   const publicUrl = `/invoices/${filename}`;
 
@@ -92,35 +92,35 @@ export const generateInvoicePdf = async (
 
   // Invoice details
   doc.fontSize(12).font('Helvetica-Bold').text('Invoice Number:');
-  doc.fontSize(12).font('Helvetica').text(invoice.invoiceNumber);
+  doc.fontSize(12).font('Helvetica').text(invoice.invoice_number);
   doc.moveDown(0.5);
 
   doc.fontSize(12).font('Helvetica-Bold').text('AWB Number:');
-  doc.fontSize(12).font('Helvetica').text(invoice.awbNumber);
+  doc.fontSize(12).font('Helvetica').text(invoice.awb_number);
   doc.moveDown(0.5);
 
   doc.fontSize(12).font('Helvetica-Bold').text('Issue Date:');
   doc.fontSize(12)
     .font('Helvetica')
-    .text(format(new Date(invoice.issueDate), 'MMMM dd, yyyy'));
+    .text(format(new Date(invoice.issue_date), 'MMMM dd, yyyy'));
   doc.moveDown(0.5);
 
   doc.fontSize(12).font('Helvetica-Bold').text('Due Date:');
   doc.fontSize(12)
     .font('Helvetica')
-    .text(format(new Date(invoice.dueDate), 'MMMM dd, yyyy'));
+    .text(format(new Date(invoice.due_date), 'MMMM dd, yyyy'));
   doc.moveDown(1);
 
   // Billing and shipping details
   doc.fontSize(14).font('Helvetica-Bold').text('Bill To:');
-  doc.fontSize(12).font('Helvetica').text(invoice.customerName);
-  doc.text(invoice.billingAddress);
-  doc.text(`Email: ${invoice.customerEmail || 'N/A'}`);
-  doc.text(`Phone: ${invoice.customerPhone || 'N/A'}`);
+  doc.fontSize(12).font('Helvetica').text(invoice.customer_name);
+  doc.text(invoice.billing_address);
+  doc.text(`Email: ${invoice.customer_email || 'N/A'}`);
+  doc.text(`Phone: ${invoice.customer_phone || 'N/A'}`);
   doc.moveDown();
 
   doc.fontSize(14).font('Helvetica-Bold').text('Ship To:');
-  doc.fontSize(12).font('Helvetica').text(invoice.shippingAddress);
+  doc.fontSize(12).font('Helvetica').text(invoice.shipping_address);
   doc.moveDown(2);
 
   // Invoice items table
@@ -161,11 +161,11 @@ export const generateInvoicePdf = async (
       width: tableWidths[1],
       align: 'right',
     });
-    doc.text(formatCurrency(item.unitPrice, invoice.currency), tableX + tableWidths[0] + tableWidths[1], currentY, {
+    doc.text(formatCurrency(item.unit_price, invoice.currency), tableX + tableWidths[0] + tableWidths[1], currentY, {
       width: tableWidths[2],
       align: 'right',
     });
-    doc.text(item.taxRate ? `${item.taxRate}%` : '0%', tableX + tableWidths[0] + tableWidths[1] + tableWidths[2], currentY, {
+    doc.text(item.tax_rate ? `${item.tax_rate}%` : '0%', tableX + tableWidths[0] + tableWidths[1] + tableWidths[2], currentY, {
       width: tableWidths[3],
       align: 'right',
     });
@@ -174,7 +174,7 @@ export const generateInvoicePdf = async (
       align: 'right',
     });
     doc.text(
-      formatCurrency(item.lineTotal, invoice.currency),
+      formatCurrency(item.line_total, invoice.currency),
       tableX + tableWidths[0] + tableWidths[1] + tableWidths[2] + tableWidths[3] + tableWidths[4],
       currentY,
       {
@@ -200,8 +200,8 @@ export const generateInvoicePdf = async (
   // Calculate subtotal (before tax)
   const subtotal = invoiceItems.reduce((sum, item) => {
     const priceAfterDiscount = item.discount
-      ? item.unitPrice * (1 - item.discount / 100)
-      : item.unitPrice;
+      ? item.unit_price * (1 - item.discount / 100)
+      : item.unit_price;
     return sum + priceAfterDiscount * item.quantity;
   }, 0);
 
@@ -220,9 +220,9 @@ export const generateInvoicePdf = async (
   // Calculate tax
   const tax = invoiceItems.reduce((sum, item) => {
     const priceAfterDiscount = item.discount
-      ? item.unitPrice * (1 - item.discount / 100)
-      : item.unitPrice;
-    const itemTax = item.taxRate ? (priceAfterDiscount * item.quantity * item.taxRate) / 100 : 0;
+      ? item.unit_price * (1 - item.discount / 100)
+      : item.unit_price;
+    const itemTax = item.tax_rate ? (priceAfterDiscount * item.quantity * item.tax_rate) / 100 : 0;
     return sum + itemTax;
   }, 0);
 
@@ -250,7 +250,7 @@ export const generateInvoicePdf = async (
   });
 
   doc.fontSize(12).font('Helvetica-Bold').text(
-    formatCurrency(invoice.totalAmount, invoice.currency),
+    formatCurrency(invoice.total_amount, invoice.currency),
     totalsX + tableWidths[4],
     currentY,
     {
@@ -265,7 +265,7 @@ export const generateInvoicePdf = async (
   doc.fontSize(12).font('Helvetica-Bold').text('Payment Terms:', 50, currentY);
   currentY += 20;
   doc.fontSize(10).font('Helvetica').text(
-    `Payment is due by ${format(new Date(invoice.dueDate), 'MMMM dd, yyyy')}. Please include the invoice number with your payment.`,
+    `Payment is due by ${format(new Date(invoice.due_date), 'MMMM dd, yyyy')}. Please include the invoice number with your payment.`,
     50,
     currentY,
     { width: 500 },
@@ -281,7 +281,7 @@ export const generateInvoicePdf = async (
   }
 
   // Add AWB barcode info at the bottom
-  doc.fontSize(10).font('Helvetica').text(`AWB: ${invoice.awbNumber}`, {
+  doc.fontSize(10).font('Helvetica').text(`AWB: ${invoice.awb_number}`, {
     align: 'center',
   });
 

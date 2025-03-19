@@ -4,6 +4,9 @@ import { storage } from "./storage";
 import axios from "axios";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { invoices, invoiceItems } from "@shared/schema";
 
 // Import validation schemas
 import {
@@ -547,23 +550,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const invoiceId = parseInt(req.params.id);
       
-      // Get invoice details
-      const invoice = await storage.getInvoiceById(invoiceId);
-      if (!invoice) {
+      // Get invoice details with original database column names
+      // We'll send this directly to the PDF generator since it now expects snake_case fields
+      const invoiceResult = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
+      if (invoiceResult.length === 0) {
         return res.status(404).json({ message: "Invoice not found" });
       }
+      const invoice = invoiceResult[0];
       
-      // Get invoice items
-      const invoiceItems = await storage.getInvoiceItems(invoiceId);
+      // Get invoice items with original database column names
+      const invoiceItemsResult = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
       
       // Import PDF generator dynamically
       const { generateInvoicePdf } = await import('./services/pdfGenerator');
       
       // Generate PDF
-      const pdfUrl = await generateInvoicePdf(invoice, invoiceItems);
+      const pdfUrl = await generateInvoicePdf(invoice, invoiceItemsResult);
       
-      // Update invoice with PDF URL
-      await storage.updateInvoiceStatus(invoiceId, invoice.status); // Just to update the pdfUrl
+      // Update invoice with PDF URL if needed
+      if (!invoice.pdf_url) {
+        await db.update(invoices)
+          .set({ pdf_url: pdfUrl })
+          .where(eq(invoices.id, invoiceId));
+      }
       
       res.json({ pdfUrl });
     } catch (error) {
