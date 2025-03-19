@@ -1,0 +1,45 @@
+You are tasked with enhancing an admin dashboard for a cargo and courier company's website, using the purchased Trezo MultiFramework Admin Dashboard Template as the base. User authentication and signup flows are skipped; the focus is entirely on core features. Your job is to implement the following modules with clear, modular code and thorough inline documentation:
+
+1. Shipments Management Enhancements:
+   - Implement advanced filtering and search capabilities:
+     - Allow administrators to filter shipments by status, date ranges, destination, service type, etc.
+     - Include a robust search function with autocomplete and fuzzy matching.
+   - Enhance the data table component by integrating sorting, pagination, and the ability to save custom filter presets.
+
+2. Historical Rate Comparison and Analysis:
+   - Develop tools to store historical rate data (from CSV uploads or API records).
+   - Build a module that enables users to compare historical and current rates:
+     - Visualize trends using charts and graphs.
+     - Enable date range selection for analysis.
+   - Provide insights and alerts on significant rate changes.
+
+3. Expanded Aramex API Integration:
+   - Integrate additional Aramex services beyond the basics (e.g., customs clearance, insurance options, pickup scheduling).
+   - Create dedicated serverless functions (or API routes) for these endpoints with error handling, logging, and retry mechanisms.
+   - Update the dashboard to display real-time data from these additional services.
+
+4. Export Functionality:
+   - Implement export features for both shipment data and reports:
+     - Allow administrators to export data in CSV, Excel, or PDF formats.
+     - Include options to export either the full dataset or filtered subsets, complete with metadata such as date/time and applied filters.
+
+5. Financial Model and Invoicing System:
+   - Develop a financial model module that aggregates shipment costs, service fees, taxes, and other charges.
+   - Implement an invoicing system that generates invoices based on shipment and financial data.
+     - Use the attached sample invoice (refer to the attached PDF sample from :contentReference[oaicite:2]{index=2}&#8203;:contentReference[oaicite:3]{index=3}) as a design and data model reference.
+     - Include key invoice components such as shipper and receiver details, service descriptions, costs, and payment terms.
+   - Provide an interface to preview, download (PDF/Excel), and email invoices to clients.
+   - Incorporate functionality to reconcile invoicing data with shipment records for financial reporting.
+
+6. General Development Guidelines:
+   - Leverage the Trezo template’s pre-built UI components and layout to minimize custom UI development.
+   - Ensure each module (shipments, historical analysis, API integration, exports, financial/invoicing) is encapsulated as an independent, maintainable component.
+   - Use serverless functions or API routes to securely handle dynamic data and third-party API interactions.
+   - Include comprehensive inline comments and documentation for each function and module.
+   - Utilize mock data during development to test each module before integration with live data.
+
+Generate code templates, component stubs, and helper functions to implement these advanced features. Prioritize clear separation of concerns, scalability, and ease of future enhancements.
+
+Additional Note:
+- The financial and invoicing system should follow the layout and data structure from the attached sample invoice. Pay attention to key fields such as invoice numbers, dates, shipment details, cost breakdowns, and terms. Use this sample as a guide for creating templates and calculating financial metrics.
+
