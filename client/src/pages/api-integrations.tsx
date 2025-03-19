@@ -1,32 +1,24 @@
+
 import React, { useState } from "react";
-import { DashboardLayout } from "@/components/dashboard-layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { ShipmentForm } from "@/components/forms/shipment-form";
-import { PickupForm } from "@/components/forms/pickup-form";
-import { TrackingForm } from "@/components/forms/tracking-form";
-import { LocationForm } from "@/components/forms/location-form";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function ApiIntegrations() {
-  const [activeTab, setActiveTab] = useState("shipments");
+  const [activeTab, setActiveTab] = useState("tracking");
 
   return (
     <DashboardLayout title="API Integrations">
       <div className="mb-8">
         <Card>
+          <CardHeader>API Services</CardHeader>
           <CardContent>
             <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-              <TabsContent value="shipments">
-                <ShipmentForm />
-              </TabsContent>
-              <TabsContent value="pickups">
-                <PickupForm />
-              </TabsContent>
               <TabsContent value="tracking">
-                <TrackingForm />
+                {/* Tracking Content */}
               </TabsContent>
               <TabsContent value="location-services">
-                <LocationForm />
+                {/* Location Services Content */}
               </TabsContent>
             </Tabs>
           </CardContent>
