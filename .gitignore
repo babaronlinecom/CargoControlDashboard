@@ -1,12 +1,36 @@
 node_modules
 dist
 .DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
 # Dependencies
 node_modules
 .env
+.env.local
+.env.*.local
+
+# Build
+dist
+build
+server/public
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+vite.config.ts.*
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Build
 dist
