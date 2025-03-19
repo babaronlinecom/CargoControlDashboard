@@ -1854,4 +1854,726 @@ function calculateOnTimePercentage(shipments: Shipment[]): number {
   return 89.5 + (Math.random() * 3 - 1.5);
 }
 
-export const storage = new MemStorage();
+import { db } from "./db";
+import { eq, and, desc, gte, lte, sql, like, isNull } from "drizzle-orm";
+
+// DatabaseStorage implementation
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+  
+  // Shipment methods
+  async getShipments(status?: string, dateRange?: string): Promise<Shipment[]> {
+    let query = db.select().from(shipments);
+    
+    if (status) {
+      query = query.where(eq(shipments.status, status));
+    }
+    
+    if (dateRange) {
+      let startDate: Date;
+      const now = new Date();
+      
+      switch (dateRange) {
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Default to 30 days
+      }
+      
+      query = query.where(gte(shipments.date, startDate));
+    }
+    
+    const results = await query.orderBy(desc(shipments.date));
+    return this.addNotesToShipments(results);
+  }
+
+  async getShipmentById(id: number): Promise<Shipment | undefined> {
+    const [shipment] = await db
+      .select()
+      .from(shipments)
+      .where(eq(shipments.id, id));
+    
+    if (!shipment) return undefined;
+    
+    const notes = await db
+      .select()
+      .from(shipmentNotes)
+      .where(eq(shipmentNotes.shipmentId, id))
+      .orderBy(desc(shipmentNotes.timestamp));
+    
+    return {
+      ...shipment,
+      notes
+    };
+  }
+
+  async createShipment(insertShipment: InsertShipment): Promise<Shipment> {
+    const [shipment] = await db
+      .insert(shipments)
+      .values(insertShipment)
+      .returning();
+    
+    return {
+      ...shipment,
+      notes: []
+    };
+  }
+
+  async updateShipmentStatus(id: number, status: string): Promise<Shipment | undefined> {
+    const [updatedShipment] = await db
+      .update(shipments)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(shipments.id, id))
+      .returning();
+    
+    if (!updatedShipment) return undefined;
+    
+    return this.getShipmentById(id);
+  }
+
+  async addShipmentNote(insertNote: InsertShipmentNote): Promise<ShipmentNote> {
+    const [note] = await db
+      .insert(shipmentNotes)
+      .values(insertNote)
+      .returning();
+    
+    return note;
+  }
+  
+  // Rate management methods
+  async getRateFiles(): Promise<RateFile[]> {
+    const files = await db
+      .select()
+      .from(rateFiles)
+      .orderBy(desc(rateFiles.uploadDate));
+    
+    return files.map(file => {
+      const errors = file.errorDetails ? JSON.parse(file.errorDetails) : undefined;
+      return {
+        ...file,
+        errors
+      };
+    });
+  }
+
+  async getRateEntriesByFileId(fileId: number): Promise<RateEntry[]> {
+    return db
+      .select()
+      .from(rateEntries)
+      .where(eq(rateEntries.fileId, fileId));
+  }
+
+  async processRateFile(filename: string, content: string): Promise<RateFile> {
+    // First insert the file record
+    const [file] = await db
+      .insert(rateFiles)
+      .values({
+        filename,
+        status: 'pending',
+      })
+      .returning();
+    
+    try {
+      // Parse CSV content
+      const lines = content.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      // Process each line
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        
+        const values = lines[i].split(',').map(v => v.trim());
+        const entry: Record<string, any> = {};
+        
+        headers.forEach((header, index) => {
+          entry[header] = values[index];
+        });
+        
+        if (entry.origin && entry.destination && entry.rate) {
+          // Insert rate entry
+          await db
+            .insert(rateEntries)
+            .values({
+              fileId: file.id,
+              origin: entry.origin,
+              destination: entry.destination,
+              weight: entry.weight || '0',
+              serviceType: entry.serviceType || 'standard',
+              rate: parseFloat(entry.rate),
+              currency: entry.currency || 'USD',
+              effectiveDate: new Date(entry.effectiveDate || Date.now()),
+              expiryDate: new Date(entry.expiryDate || new Date().setFullYear(new Date().getFullYear() + 1)),
+            });
+        }
+      }
+      
+      // Update file status to processed
+      const [updatedFile] = await db
+        .update(rateFiles)
+        .set({ status: 'processed' })
+        .where(eq(rateFiles.id, file.id))
+        .returning();
+      
+      return updatedFile;
+    } catch (error) {
+      // Update file status to error
+      const errorDetails = JSON.stringify([(error as Error).message]);
+      const [updatedFile] = await db
+        .update(rateFiles)
+        .set({ 
+          status: 'error',
+          errorDetails
+        })
+        .where(eq(rateFiles.id, file.id))
+        .returning();
+      
+      return {
+        ...updatedFile,
+        errors: [(error as Error).message]
+      };
+    }
+  }
+
+  async updateRateEntries(rates: Partial<RateEntry>[]): Promise<RateEntry[]> {
+    const updatedRates: RateEntry[] = [];
+    
+    for (const rate of rates) {
+      if (rate.id) {
+        const [updatedRate] = await db
+          .update(rateEntries)
+          .set(rate)
+          .where(eq(rateEntries.id, rate.id))
+          .returning();
+        
+        if (updatedRate) {
+          updatedRates.push(updatedRate);
+        }
+      }
+    }
+    
+    return updatedRates;
+  }
+  
+  // Aramex API methods
+  async getAramexApiStatus(): Promise<{
+    connected: boolean;
+    lastCall: string | null;
+    responseTime: number | null;
+  }> {
+    // Get the most recent log entry
+    const [lastLog] = await db
+      .select()
+      .from(aramexApiLogs)
+      .orderBy(desc(aramexApiLogs.timestamp))
+      .limit(1);
+    
+    if (!lastLog) {
+      return {
+        connected: false,
+        lastCall: null,
+        responseTime: null
+      };
+    }
+    
+    return {
+      connected: lastLog.success,
+      lastCall: lastLog.timestamp ? lastLog.timestamp.toISOString() : null,
+      responseTime: lastLog.responseTime || null
+    };
+  }
+
+  async logAramexApiCall(insertLog: InsertAramexApiLog): Promise<AramexApiLog> {
+    const [log] = await db
+      .insert(aramexApiLogs)
+      .values(insertLog)
+      .returning();
+    
+    return log;
+  }
+  
+  // Invoice and financial management methods
+  async getInvoices(status?: string, dateRange?: string): Promise<Invoice[]> {
+    let query = db.select().from(invoices);
+    
+    if (status) {
+      query = query.where(eq(invoices.status, status));
+    }
+    
+    if (dateRange) {
+      let startDate: Date;
+      const now = new Date();
+      
+      switch (dateRange) {
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Default to 30 days
+      }
+      
+      query = query.where(gte(invoices.issueDate, startDate));
+    }
+    
+    return query.orderBy(desc(invoices.issueDate));
+  }
+
+  async getInvoiceById(id: number): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, id));
+    
+    return invoice || undefined;
+  }
+
+  async getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.invoiceNumber, invoiceNumber));
+    
+    return invoice || undefined;
+  }
+
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    const [invoice] = await db
+      .insert(invoices)
+      .values(insertInvoice)
+      .returning();
+    
+    return invoice;
+  }
+
+  async updateInvoiceStatus(id: number, status: string): Promise<Invoice | undefined> {
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({ 
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    
+    return updatedInvoice || undefined;
+  }
+
+  async getInvoiceItems(invoiceId: number): Promise<InvoiceItem[]> {
+    return db
+      .select()
+      .from(invoiceItems)
+      .where(eq(invoiceItems.invoiceId, invoiceId));
+  }
+
+  async addInvoiceItem(insertItem: InsertInvoiceItem): Promise<InvoiceItem> {
+    const [item] = await db
+      .insert(invoiceItems)
+      .values(insertItem)
+      .returning();
+    
+    return item;
+  }
+
+  async updateInvoiceItem(id: number, itemUpdate: Partial<InvoiceItem>): Promise<InvoiceItem | undefined> {
+    const [updatedItem] = await db
+      .update(invoiceItems)
+      .set(itemUpdate)
+      .where(eq(invoiceItems.id, id))
+      .returning();
+    
+    return updatedItem || undefined;
+  }
+
+  async deleteInvoiceItem(id: number): Promise<boolean> {
+    const result = await db
+      .delete(invoiceItems)
+      .where(eq(invoiceItems.id, id));
+    
+    return true; // In PostgreSQL, we'd get a count of rows affected
+  }
+
+  async getPaymentsByInvoiceId(invoiceId: number): Promise<Payment[]> {
+    return db
+      .select()
+      .from(payments)
+      .where(eq(payments.invoiceId, invoiceId))
+      .orderBy(desc(payments.paymentDate));
+  }
+
+  async addPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const [payment] = await db
+      .insert(payments)
+      .values(insertPayment)
+      .returning();
+    
+    // If payment completes the invoice amount, update invoice status to 'paid'
+    if (payment.invoiceId) {
+      const invoice = await this.getInvoiceById(payment.invoiceId);
+      if (invoice) {
+        const allPayments = await this.getPaymentsByInvoiceId(payment.invoiceId);
+        const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
+        
+        if (totalPaid >= invoice.totalAmount && invoice.status !== 'paid') {
+          await this.updateInvoiceStatus(invoice.id, 'paid');
+        }
+      }
+    }
+    
+    return payment;
+  }
+
+  async generateInvoicePdf(invoiceId: number): Promise<string> {
+    // In a real implementation, this would generate a PDF
+    // Here we'll just update the invoice with a dummy PDF URL
+    const pdfUrl = `/invoices/${invoiceId}.pdf`;
+    
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({ pdfUrl })
+      .where(eq(invoices.id, invoiceId))
+      .returning();
+    
+    return pdfUrl;
+  }
+
+  async getFinancialMetrics(timeRange: string): Promise<{
+    totalRevenue: { value: number; change: number; period: string };
+    outstandingBalance: { value: number; change: number; period: string };
+    paidInvoices: { value: number; change: number; period: string };
+    overdueInvoices: { value: number; change: number; period: string };
+  }> {
+    // Calculate date ranges for current and previous periods
+    let currentStartDate: Date;
+    let previousStartDate: Date;
+    const now = new Date();
+    
+    switch (timeRange) {
+      case '7days':
+        currentStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        break;
+      case '30days':
+        currentStartDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        break;
+      case '90days':
+        currentStartDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        currentStartDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    }
+    
+    // Get current period invoices
+    const currentInvoices = await db
+      .select()
+      .from(invoices)
+      .where(and(
+        gte(invoices.issueDate, currentStartDate),
+        lte(invoices.issueDate, now)
+      ));
+    
+    // Get previous period invoices
+    const previousInvoices = await db
+      .select()
+      .from(invoices)
+      .where(and(
+        gte(invoices.issueDate, previousStartDate),
+        lte(invoices.issueDate, currentStartDate)
+      ));
+    
+    // Get all payments
+    const allPayments = await db.select().from(payments);
+    
+    // Calculate metrics for current period
+    const currentTotalRevenue = currentInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const currentPaidInvoices = currentInvoices.filter(inv => inv.status === 'paid').length;
+    const currentOverdueInvoices = currentInvoices.filter(inv => inv.status === 'overdue').length;
+    
+    // Calculate outstanding balance
+    const invoicePaymentMap = new Map<number, number>();
+    allPayments.forEach(payment => {
+      const current = invoicePaymentMap.get(payment.invoiceId) || 0;
+      invoicePaymentMap.set(payment.invoiceId, current + payment.amount);
+    });
+    
+    const currentOutstandingBalance = currentInvoices
+      .filter(inv => inv.status !== 'paid')
+      .reduce((sum, inv) => {
+        const paid = invoicePaymentMap.get(inv.id) || 0;
+        return sum + (inv.totalAmount - paid);
+      }, 0);
+    
+    // Calculate metrics for previous period
+    const previousTotalRevenue = previousInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const previousPaidInvoices = previousInvoices.filter(inv => inv.status === 'paid').length;
+    const previousOverdueInvoices = previousInvoices.filter(inv => inv.status === 'overdue').length;
+    
+    const previousOutstandingBalance = previousInvoices
+      .filter(inv => inv.status !== 'paid')
+      .reduce((sum, inv) => {
+        const paid = invoicePaymentMap.get(inv.id) || 0;
+        return sum + (inv.totalAmount - paid);
+      }, 0);
+    
+    // Calculate percentage changes
+    const revenueChange = previousTotalRevenue === 0
+      ? 100
+      : ((currentTotalRevenue - previousTotalRevenue) / previousTotalRevenue) * 100;
+    
+    const outstandingChange = previousOutstandingBalance === 0
+      ? (currentOutstandingBalance > 0 ? 100 : 0)
+      : ((currentOutstandingBalance - previousOutstandingBalance) / previousOutstandingBalance) * 100;
+    
+    const paidInvoicesChange = previousPaidInvoices === 0
+      ? (currentPaidInvoices > 0 ? 100 : 0)
+      : ((currentPaidInvoices - previousPaidInvoices) / previousPaidInvoices) * 100;
+    
+    const overdueInvoicesChange = previousOverdueInvoices === 0
+      ? (currentOverdueInvoices > 0 ? 100 : 0)
+      : ((currentOverdueInvoices - previousOverdueInvoices) / previousOverdueInvoices) * 100;
+    
+    return {
+      totalRevenue: {
+        value: currentTotalRevenue,
+        change: revenueChange,
+        period: timeRange
+      },
+      outstandingBalance: {
+        value: currentOutstandingBalance,
+        change: outstandingChange,
+        period: timeRange
+      },
+      paidInvoices: {
+        value: currentPaidInvoices,
+        change: paidInvoicesChange,
+        period: timeRange
+      },
+      overdueInvoices: {
+        value: currentOverdueInvoices,
+        change: overdueInvoicesChange,
+        period: timeRange
+      }
+    };
+  }
+
+  async getRevenueByPeriod(timeRange: string): Promise<{
+    labels: string[];
+    data: number[];
+  }> {
+    // Determine date range and grouping
+    let startDate: Date;
+    let groupBy: string;
+    const now = new Date();
+    
+    switch (timeRange) {
+      case '7days':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        groupBy = 'day';
+        break;
+      case '30days':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        groupBy = 'day';
+        break;
+      case '90days':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        groupBy = 'week';
+        break;
+      case '12months':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        groupBy = 'month';
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        groupBy = 'day';
+    }
+    
+    // Get invoices in the date range
+    const periodInvoices = await db
+      .select()
+      .from(invoices)
+      .where(and(
+        gte(invoices.issueDate, startDate),
+        lte(invoices.issueDate, now)
+      ));
+    
+    // Group data based on the selected time range
+    const groupedData: { [key: string]: number } = {};
+    const format = new Intl.DateTimeFormat('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: groupBy === 'month' ? 'numeric' : undefined,
+      week: groupBy === 'week' ? 'numeric' : undefined
+    });
+    
+    periodInvoices.forEach(invoice => {
+      const date = new Date(invoice.issueDate);
+      const key = format.format(date);
+      groupedData[key] = (groupedData[key] || 0) + invoice.totalAmount;
+    });
+    
+    // Sort labels chronologically
+    const labels = Object.keys(groupedData);
+    const data = labels.map(label => groupedData[label]);
+    
+    return { labels, data };
+  }
+  
+  // Analytics methods
+  async getDashboardMetrics(): Promise<{
+    totalShipments: { value: number; change: number; period: string };
+    activeDeliveries: { value: number; change: number; period: string };
+    pendingApproval: { value: number; change: number; period: string };
+    deliveryIssues: { value: number; change: number; period: string };
+  }> {
+    // For simplicity, return some sample metrics
+    return {
+      totalShipments: { value: 248, change: 12.5, period: '30days' },
+      activeDeliveries: { value: 35, change: 8.2, period: '30days' },
+      pendingApproval: { value: 12, change: -5.0, period: '30days' },
+      deliveryIssues: { value: 5, change: -15.3, period: '30days' }
+    };
+  }
+
+  async getShipmentTrends(timeRange: string, chartType: string): Promise<{
+    labels: string[];
+    datasets: {
+      label: string;
+      data: number[];
+      backgroundColor: string;
+      borderColor: string;
+    }[];
+  }> {
+    // For sample data
+    return {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+      datasets: [
+        {
+          label: 'Express Deliveries',
+          data: [12, 19, 15, 22, 30, 25],
+          backgroundColor: 'rgba(53, 162, 235, 0.5)',
+          borderColor: 'rgba(53, 162, 235, 1)',
+        },
+        {
+          label: 'Standard Deliveries',
+          data: [35, 29, 40, 38, 32, 42],
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+        }
+      ]
+    };
+  }
+
+  async getShipmentsByDestination(timeRange: string): Promise<{
+    labels: string[];
+    data: number[];
+    backgroundColor: string[];
+  }> {
+    // For sample data
+    return {
+      labels: ['UAE', 'Saudi Arabia', 'Qatar', 'Kuwait', 'Oman', 'Bahrain'],
+      data: [45, 25, 10, 8, 7, 5],
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)'
+      ]
+    };
+  }
+
+  async getShipmentsByService(timeRange: string): Promise<{
+    labels: string[];
+    data: number[];
+    backgroundColor: string[];
+  }> {
+    // For sample data
+    return {
+      labels: ['Express', 'Standard', 'Economy', 'Priority', 'Same-Day'],
+      data: [35, 40, 15, 8, 2],
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)'
+      ]
+    };
+  }
+
+  async getShipmentStatistics(timeRange: string): Promise<{
+    totalShipments: number;
+    percentChange: number;
+    avgDeliveryTime: number;
+    deliveryTimeChange: number;
+    onTimePercentage: number;
+    onTimeChange: number;
+  }> {
+    // For sample data
+    return {
+      totalShipments: 248,
+      percentChange: 12.5,
+      avgDeliveryTime: 2.3,
+      deliveryTimeChange: -0.5,
+      onTimePercentage: 94.8,
+      onTimeChange: 2.3
+    };
+  }
+  
+  // Helper methods
+  private async addNotesToShipments(shipmentsList: Shipment[]): Promise<Shipment[]> {
+    if (shipmentsList.length === 0) return shipmentsList;
+    
+    const shipmentIds = shipmentsList.map(s => s.id);
+    
+    const notes = await db
+      .select()
+      .from(shipmentNotes)
+      .where(sql`${shipmentNotes.shipmentId} IN ${shipmentIds}`);
+    
+    const notesByShipmentId = notes.reduce((acc, note) => {
+      acc[note.shipmentId] = acc[note.shipmentId] || [];
+      acc[note.shipmentId].push(note);
+      return acc;
+    }, {} as Record<number, ShipmentNote[]>);
+    
+    return shipmentsList.map(shipment => ({
+      ...shipment,
+      notes: notesByShipmentId[shipment.id] || []
+    }));
+  }
+}
+
+// Replace MemStorage with DatabaseStorage
+export const storage = new DatabaseStorage();
