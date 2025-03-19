@@ -1,0 +1,32 @@
+You are tasked with building the admin dashboard for a cargo and courier company's website based on a Jamstack architecture. Skip any user authentication or login flows; focus entirely on the core features. The admin dashboard should provide functionalities to manage shipments, update and parse CSV rate data, and integrate with Aramex APIs for real-time services. The key requirements are as follows:
+
+1. **Dashboard Layout & Navigation:**
+   - Build a responsive admin dashboard UI using a modern static site generator (e.g., Next.js or Gatsby).
+   - Include a sidebar or top navigation for easy access to sections like Shipments, Rate Management, API Integrations, and Analytics.
+
+2. **Shipments Management:**
+   - Develop a module to display, search, and filter shipments.
+   - Implement functionality to view shipment details, update statuses, and add notes.
+   - Integrate a data table component for managing large sets of shipment records.
+
+3. **Rate Management via CSV:**
+   - Create a module to upload, parse, and validate CSV rate files.
+   - Provide an interface to view and update rates.
+   - Include error handling and data validation routines to ensure data consistency.
+
+4. **Aramex API Integration:**
+   - Integrate Aramex APIs (Rate Calculator, Shipping Services, Shipment Tracking, Location Services).
+   - Develop serverless functions (or API routes) to proxy requests between the admin dashboard and Aramex APIs.
+   - Create a dashboard module to display real-time data from these API calls, such as current shipment tracking status and calculated shipping rates.
+
+5. **Analytics & Reporting:**
+   - Build simple reporting components to visualize shipment trends and rate changes.
+   - Integrate charts or graphs for quick insights into key performance metrics.
+
+6. **Modularity & Maintainability:**
+   - Structure the code with clear separation of concerns; each module should be independent and well-documented.
+   - Include inline comments and brief documentation for each function, especially for API integrations and CSV parsing routines.
+
+Generate code templates, component stubs, and helper functions as needed to ensure the admin dashboard is fully functional and ready for further integration testing. Focus on clear, modular, and scalable design to enable future enhancements.
+
+Remember: Do not implement user login/authorization—start directly from the admin dashboard functionalities.
