@@ -58,6 +58,30 @@ export interface IStorage {
   }>;
   logAramexApiCall(log: InsertAramexApiLog): Promise<AramexApiLog>;
   
+  // Invoice and financial management methods
+  getInvoices(status?: string, dateRange?: string): Promise<Invoice[]>;
+  getInvoiceById(id: number): Promise<Invoice | undefined>;
+  getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoiceStatus(id: number, status: string): Promise<Invoice | undefined>;
+  getInvoiceItems(invoiceId: number): Promise<InvoiceItem[]>;
+  addInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem>;
+  updateInvoiceItem(id: number, item: Partial<InvoiceItem>): Promise<InvoiceItem | undefined>;
+  deleteInvoiceItem(id: number): Promise<boolean>;
+  getPaymentsByInvoiceId(invoiceId: number): Promise<Payment[]>;
+  addPayment(payment: InsertPayment): Promise<Payment>;
+  generateInvoicePdf(invoiceId: number): Promise<string>; // Returns the URL to the PDF file
+  getFinancialMetrics(timeRange: string): Promise<{
+    totalRevenue: { value: number; change: number; period: string };
+    outstandingBalance: { value: number; change: number; period: string };
+    paidInvoices: { value: number; change: number; period: string };
+    overdueInvoices: { value: number; change: number; period: string };
+  }>;
+  getRevenueByPeriod(timeRange: string): Promise<{
+    labels: string[];
+    data: number[];
+  }>;
+  
   // Analytics methods
   getDashboardMetrics(): Promise<{
     totalShipments: { value: number; change: number; period: string };
@@ -103,6 +127,11 @@ export class MemStorage implements IStorage {
   private aramexApiLogs: Map<number, AramexApiLog>;
   private analyticsData: Map<number, AnalyticsData>;
   
+  // Financial model maps
+  private invoices: Map<number, Invoice>;
+  private invoiceItems: Map<number, InvoiceItem>;
+  private payments: Map<number, Payment>;
+  
   private currentUserId: number;
   private currentShipmentId: number;
   private currentNoteId: number;
@@ -110,6 +139,9 @@ export class MemStorage implements IStorage {
   private currentRateEntryId: number;
   private currentLogId: number;
   private currentAnalyticsDataId: number;
+  private currentInvoiceId: number;
+  private currentInvoiceItemId: number;
+  private currentPaymentId: number;
   
   constructor() {
     this.users = new Map();

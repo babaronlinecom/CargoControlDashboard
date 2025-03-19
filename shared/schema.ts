@@ -137,3 +137,75 @@ export const insertAramexApiLogSchema = createInsertSchema(aramexApiLogs).omit({
 
 export type InsertAramexApiLog = z.infer<typeof insertAramexApiLogSchema>;
 export type AramexApiLog = typeof aramexApiLogs.$inferSelect;
+
+// Invoice tables
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  shipmentId: integer("shipment_id").references(() => shipments.id),
+  awbNumber: text("awb_number").notNull(), // Air Waybill number
+  status: text("status").notNull().default("unpaid"), // unpaid, paid, overdue, cancelled
+  issueDate: timestamp("issue_date").notNull().defaultNow(),
+  dueDate: timestamp("due_date").notNull(),
+  totalAmount: float("total_amount").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  notes: text("notes"),
+  billingAddress: text("billing_address").notNull(),
+  shippingAddress: text("shipping_address").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  pdfUrl: text("pdf_url"), // URL to the generated PDF
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Invoice = typeof invoices.$inferSelect;
+
+// Invoice line items
+export const invoiceItems = pgTable("invoice_items", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: float("unit_price").notNull(),
+  taxRate: float("tax_rate").default(0),
+  discount: float("discount").default(0),
+  lineTotal: float("line_total").notNull(),
+});
+
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({
+  id: true,
+});
+
+export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+
+// Payment records
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
+  amount: float("amount").notNull(),
+  paymentDate: timestamp("payment_date").notNull().defaultNow(),
+  paymentMethod: text("payment_method").notNull(), // credit_card, bank_transfer, cash, etc.
+  transactionId: text("transaction_id"),
+  notes: text("notes"),
+  status: text("status").notNull().default("completed"), // completed, pending, failed, refunded
+  receivedBy: text("received_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
