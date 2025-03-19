@@ -19,7 +19,16 @@ import {
   type InsertAramexApiLog,
   analyticsData,
   type AnalyticsData,
-  type InsertAnalyticsData
+  type InsertAnalyticsData,
+  invoices,
+  type Invoice,
+  type InsertInvoice,
+  invoiceItems,
+  type InvoiceItem,
+  type InsertInvoiceItem,
+  payments,
+  type Payment,
+  type InsertPayment
 } from "@shared/schema";
 
 // Mock data for tracking colors
@@ -152,6 +161,11 @@ export class MemStorage implements IStorage {
     this.aramexApiLogs = new Map();
     this.analyticsData = new Map();
     
+    // Initialize financial model maps
+    this.invoices = new Map();
+    this.invoiceItems = new Map();
+    this.payments = new Map();
+    
     this.currentUserId = 1;
     this.currentShipmentId = 1;
     this.currentNoteId = 1;
@@ -159,6 +173,9 @@ export class MemStorage implements IStorage {
     this.currentRateEntryId = 1;
     this.currentLogId = 1;
     this.currentAnalyticsDataId = 1;
+    this.currentInvoiceId = 1;
+    this.currentInvoiceItemId = 1;
+    this.currentPaymentId = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -437,6 +454,423 @@ export class MemStorage implements IStorage {
     
     this.aramexApiLogs.set(id, log);
     return log;
+  }
+  
+  // Invoice and financial management methods
+  async getInvoices(status?: string, dateRange?: string): Promise<Invoice[]> {
+    let invoices = Array.from(this.invoices.values());
+    
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      invoices = invoices.filter(i => i.status.toLowerCase() === status.toLowerCase());
+    }
+    
+    // Filter by date range if provided
+    if (dateRange) {
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (dateRange) {
+        case '7days':
+          startDate = new Date(now.setDate(now.getDate() - 7));
+          break;
+        case '30days':
+          startDate = new Date(now.setDate(now.getDate() - 30));
+          break;
+        case '90days':
+          startDate = new Date(now.setDate(now.getDate() - 90));
+          break;
+        case 'thismonth':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        default:
+          startDate = new Date(now.setDate(now.getDate() - 30)); // Default to 30 days
+      }
+      
+      invoices = invoices.filter(i => new Date(i.issueDate) >= startDate);
+    }
+    
+    return invoices;
+  }
+  
+  async getInvoiceById(id: number): Promise<Invoice | undefined> {
+    return this.invoices.get(id);
+  }
+  
+  async getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined> {
+    return Array.from(this.invoices.values()).find(
+      invoice => invoice.invoiceNumber === invoiceNumber
+    );
+  }
+  
+  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
+    const id = this.currentInvoiceId++;
+    const invoice: Invoice = {
+      ...insertInvoice,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.invoices.set(id, invoice);
+    return invoice;
+  }
+  
+  async updateInvoiceStatus(id: number, status: string): Promise<Invoice | undefined> {
+    const invoice = this.invoices.get(id);
+    if (!invoice) return undefined;
+    
+    const updatedInvoice = {
+      ...invoice,
+      status,
+      updatedAt: new Date()
+    };
+    
+    this.invoices.set(id, updatedInvoice);
+    return updatedInvoice;
+  }
+  
+  async getInvoiceItems(invoiceId: number): Promise<InvoiceItem[]> {
+    return Array.from(this.invoiceItems.values()).filter(
+      item => item.invoiceId === invoiceId
+    );
+  }
+  
+  async addInvoiceItem(insertItem: InsertInvoiceItem): Promise<InvoiceItem> {
+    const id = this.currentInvoiceItemId++;
+    const item: InvoiceItem = {
+      ...insertItem,
+      id
+    };
+    
+    this.invoiceItems.set(id, item);
+    
+    // Update invoice total
+    const invoice = this.invoices.get(insertItem.invoiceId);
+    if (invoice) {
+      const updatedInvoice = {
+        ...invoice,
+        totalAmount: invoice.totalAmount + insertItem.lineTotal,
+        updatedAt: new Date()
+      };
+      this.invoices.set(invoice.id, updatedInvoice);
+    }
+    
+    return item;
+  }
+  
+  async updateInvoiceItem(id: number, itemUpdate: Partial<InvoiceItem>): Promise<InvoiceItem | undefined> {
+    const item = this.invoiceItems.get(id);
+    if (!item) return undefined;
+    
+    const originalTotal = item.lineTotal;
+    const updatedItem = { ...item, ...itemUpdate };
+    
+    this.invoiceItems.set(id, updatedItem);
+    
+    // Update invoice total if the line total has changed
+    if (updatedItem.lineTotal !== originalTotal) {
+      const invoice = this.invoices.get(item.invoiceId);
+      if (invoice) {
+        const updatedInvoice = {
+          ...invoice,
+          totalAmount: invoice.totalAmount - originalTotal + updatedItem.lineTotal,
+          updatedAt: new Date()
+        };
+        this.invoices.set(invoice.id, updatedInvoice);
+      }
+    }
+    
+    return updatedItem;
+  }
+  
+  async deleteInvoiceItem(id: number): Promise<boolean> {
+    const item = this.invoiceItems.get(id);
+    if (!item) return false;
+    
+    // Update invoice total
+    const invoice = this.invoices.get(item.invoiceId);
+    if (invoice) {
+      const updatedInvoice = {
+        ...invoice,
+        totalAmount: Math.max(0, invoice.totalAmount - item.lineTotal), // Ensure never negative
+        updatedAt: new Date()
+      };
+      this.invoices.set(invoice.id, updatedInvoice);
+    }
+    
+    this.invoiceItems.delete(id);
+    return true;
+  }
+  
+  async getPaymentsByInvoiceId(invoiceId: number): Promise<Payment[]> {
+    return Array.from(this.payments.values()).filter(
+      payment => payment.invoiceId === invoiceId
+    );
+  }
+  
+  async addPayment(payment: InsertPayment): Promise<Payment> {
+    const id = this.currentPaymentId++;
+    const newPayment: Payment = {
+      ...payment,
+      id,
+      createdAt: new Date()
+    };
+    
+    this.payments.set(id, newPayment);
+    
+    // Update invoice status if the payment completes the amount
+    const invoice = this.invoices.get(payment.invoiceId);
+    if (invoice) {
+      const allPayments = await this.getPaymentsByInvoiceId(invoice.id);
+      const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0) + payment.amount;
+      
+      if (totalPaid >= invoice.totalAmount) {
+        const updatedInvoice = {
+          ...invoice,
+          status: 'paid',
+          updatedAt: new Date()
+        };
+        this.invoices.set(invoice.id, updatedInvoice);
+      } else if (invoice.status === 'unpaid' && totalPaid > 0) {
+        const updatedInvoice = {
+          ...invoice,
+          status: 'partial',
+          updatedAt: new Date()
+        };
+        this.invoices.set(invoice.id, updatedInvoice);
+      }
+    }
+    
+    return newPayment;
+  }
+  
+  async generateInvoicePdf(invoiceId: number): Promise<string> {
+    const invoice = this.invoices.get(invoiceId);
+    if (!invoice) {
+      throw new Error(`Invoice with ID ${invoiceId} not found`);
+    }
+    
+    // Generate a barcode for tracking
+    const barcode = invoice.awbNumber;
+    
+    // In a real implementation, we would generate an actual PDF here
+    // For now, we'll just return a mock URL
+    const pdfUrl = `/invoices/${invoice.invoiceNumber}.pdf`;
+    
+    // Update the invoice with the PDF URL
+    const updatedInvoice = {
+      ...invoice,
+      pdfUrl,
+      updatedAt: new Date()
+    };
+    
+    this.invoices.set(invoiceId, updatedInvoice);
+    
+    return pdfUrl;
+  }
+  
+  async getFinancialMetrics(timeRange: string): Promise<{
+    totalRevenue: { value: number; change: number; period: string };
+    outstandingBalance: { value: number; change: number; period: string };
+    paidInvoices: { value: number; change: number; period: string };
+    overdueInvoices: { value: number; change: number; period: string };
+  }> {
+    const allInvoices = Array.from(this.invoices.values());
+    const now = new Date();
+    
+    // Determine date ranges based on timeRange
+    let currentStartDate: Date;
+    let previousStartDate: Date;
+    
+    switch (timeRange) {
+      case '7days':
+        currentStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        break;
+      case '90days':
+        currentStartDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        break;
+      case '1year':
+        currentStartDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000);
+        break;
+      case '30days':
+      default:
+        currentStartDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        previousStartDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    }
+    
+    // Current period invoices
+    const currentInvoices = allInvoices.filter(
+      i => new Date(i.issueDate) >= currentStartDate
+    );
+    
+    // Previous period invoices
+    const previousInvoices = allInvoices.filter(
+      i => new Date(i.issueDate) >= previousStartDate && new Date(i.issueDate) < currentStartDate
+    );
+    
+    // Calculate total revenue
+    const currentRevenue = currentInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+    const previousRevenue = previousInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+    const revenueChange = previousRevenue > 0
+      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
+      : 0;
+    
+    // Calculate outstanding balance
+    const currentOutstanding = currentInvoices
+      .filter(i => i.status !== 'paid')
+      .reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+    const previousOutstanding = previousInvoices
+      .filter(i => i.status !== 'paid')
+      .reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+    const outstandingChange = previousOutstanding > 0
+      ? ((currentOutstanding - previousOutstanding) / previousOutstanding) * 100
+      : 0;
+    
+    // Count paid invoices
+    const currentPaidCount = currentInvoices.filter(i => i.status === 'paid').length;
+    const previousPaidCount = previousInvoices.filter(i => i.status === 'paid').length;
+    const paidChange = previousPaidCount > 0
+      ? ((currentPaidCount - previousPaidCount) / previousPaidCount) * 100
+      : 0;
+    
+    // Count overdue invoices
+    const currentOverdueCount = currentInvoices.filter(
+      i => i.status !== 'paid' && new Date(i.dueDate) < now
+    ).length;
+    const previousOverdueCount = previousInvoices.filter(
+      i => i.status !== 'paid' && new Date(i.dueDate) < currentStartDate
+    ).length;
+    const overdueChange = previousOverdueCount > 0
+      ? ((currentOverdueCount - previousOverdueCount) / previousOverdueCount) * 100
+      : 0;
+    
+    return {
+      totalRevenue: {
+        value: currentRevenue,
+        change: revenueChange,
+        period: timeRange === '7days' ? 'last week' : 'last month'
+      },
+      outstandingBalance: {
+        value: currentOutstanding,
+        change: outstandingChange,
+        period: timeRange === '7days' ? 'last week' : 'last month'
+      },
+      paidInvoices: {
+        value: currentPaidCount,
+        change: paidChange,
+        period: timeRange === '7days' ? 'last week' : 'last month'
+      },
+      overdueInvoices: {
+        value: currentOverdueCount,
+        change: overdueChange,
+        period: timeRange === '7days' ? 'last week' : 'last month'
+      }
+    };
+  }
+  
+  async getRevenueByPeriod(timeRange: string): Promise<{
+    labels: string[];
+    data: number[];
+  }> {
+    const allInvoices = Array.from(this.invoices.values());
+    const now = new Date();
+    
+    // Determine date range and format based on timeRange
+    let startDate: Date;
+    let labels: string[] = [];
+    let format: string;
+    
+    switch (timeRange) {
+      case '7days':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        format = 'day';
+        // Generate last 7 days as labels
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        }
+        break;
+      case '90days':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        format = 'week';
+        // Generate last 13 weeks (90 days) as labels
+        for (let i = 12; i >= 0; i--) {
+          const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+          const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+          labels.push(`${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}-${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+        }
+        break;
+      case '1year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        format = 'month';
+        // Generate last 12 months as labels
+        for (let i = 11; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          labels.push(date.toLocaleDateString('en-US', { month: 'short' }));
+        }
+        break;
+      case '30days':
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        format = 'day';
+        // Generate last 6 periods (5 days each) as labels
+        for (let i = 5; i >= 0; i--) {
+          const endDay = now.getTime() - i * 5 * 24 * 60 * 60 * 1000;
+          const startDay = endDay - 5 * 24 * 60 * 60 * 1000;
+          labels.push(`${new Date(startDay).getDate()}-${new Date(endDay).getDate()} ${new Date(endDay).toLocaleDateString('en-US', { month: 'short' })}`);
+        }
+    }
+    
+    // Filter invoices within the time range
+    const filteredInvoices = allInvoices.filter(
+      i => new Date(i.issueDate) >= startDate
+    );
+    
+    // Calculate revenue per period
+    const data = new Array(labels.length).fill(0);
+    
+    filteredInvoices.forEach(invoice => {
+      const date = new Date(invoice.issueDate);
+      let index = 0;
+      
+      if (format === 'day' && timeRange === '7days') {
+        // For 7 days, each label is a single day
+        const daysSinceStart = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+        if (daysSinceStart >= 0 && daysSinceStart < 7) {
+          index = daysSinceStart;
+        }
+      } else if (format === 'day' && timeRange === '30days') {
+        // For 30 days, each label is a 5-day period
+        const daysSinceStart = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+        if (daysSinceStart >= 0 && daysSinceStart < 30) {
+          index = Math.floor(daysSinceStart / 5);
+        }
+      } else if (format === 'week') {
+        // For 90 days, each label is a week
+        const weeksSinceStart = Math.floor((date.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        if (weeksSinceStart >= 0 && weeksSinceStart < 13) {
+          index = weeksSinceStart;
+        }
+      } else if (format === 'month') {
+        // For 1 year, each label is a month
+        const monthsSinceStart = 
+          (date.getFullYear() - startDate.getFullYear()) * 12 + 
+          (date.getMonth() - startDate.getMonth());
+        if (monthsSinceStart >= 0 && monthsSinceStart < 12) {
+          index = monthsSinceStart;
+        }
+      }
+      
+      if (index >= 0 && index < data.length) {
+        data[index] += invoice.totalAmount;
+      }
+    });
+    
+    return { labels, data };
   }
   
   // Analytics methods
