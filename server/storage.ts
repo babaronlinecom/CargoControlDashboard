@@ -917,7 +917,7 @@ export class MemStorage implements IStorage {
       } else if (format === "day" && timeRange === "30days") {
         // For 30 days, each label is a 5-day period
         const daysSinceStart = Math.floor(
-          (date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)
+          (date.getTime() - startDate.getTime()) / (24 * 660 * 1000)
         );
         if (daysSinceStart >= 0 && daysSinceStart < 30) {
           index = Math.floor(daysSinceStart / 5);
@@ -1805,51 +1805,7 @@ export class MemStorage implements IStorage {
       this.aramexApiLogs.set(id, { ...log, id } as AramexApiLog);
     });
 
-    // Additional analytics data
-    const additionalAnalytics: Partial<AnalyticsData>[] = [
-      {
-        date: new Date(new Date().setDate(new Date().getDate() - 30)),
-        totalShipments: 245,
-        deliveredOnTime: 230,
-        delayed: 12,
-        lost: 3,
-        revenue: 52750.0,
-        topDestinations: JSON.stringify([
-          { city: "Dubai", count: 85 },
-          { city: "Riyadh", count: 65 },
-          { city: "Kuwait", count: 45 },
-        ]),
-        serviceTypeBreakdown: JSON.stringify({
-          Express: 120,
-          Standard: 85,
-          Economy: 40,
-        }),
-      },
-      {
-        date: new Date(new Date().setDate(new Date().getDate() - 60)),
-        totalShipments: 228,
-        deliveredOnTime: 215,
-        delayed: 10,
-        lost: 3,
-        revenue: 48920.0,
-        topDestinations: JSON.stringify([
-          { city: "Dubai", count: 80 },
-          { city: "Riyadh", count: 60 },
-          { city: "Kuwait", count: 40 },
-        ]),
-        serviceTypeBreakdown: JSON.stringify({
-          Express: 110,
-          Standard: 80,
-          Economy: 38,
-        }),
-      },
-    ];
-
-    // Add analytics data
-    additionalAnalytics.forEach((data) => {
-      const id = this.currentAnalyticsDataId++;
-      this.analyticsData.set(id, { ...data, id } as AnalyticsData);
-    });
+    // Sample data will be handled by the DatabaseStorage implementation
 
     // Sample invoices
     const sampleInvoices: Partial<Invoice>[] = [
