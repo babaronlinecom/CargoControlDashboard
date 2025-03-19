@@ -60,7 +60,19 @@ export default function Invoices() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Invoices</h1>
           </div>
-          <p className="text-red-500">Error loading invoices. Please try again later.</p>
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-red-700">Failed to load invoices</p>
+            <p className="text-sm text-red-500 mt-1">
+              {error instanceof Error ? error.message : 'Please try again later'}
+            </p>
+            <Button 
+              onClick={() => window.location.reload()}
+              variant="destructive" 
+              className="mt-4"
+            >
+              Retry
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
