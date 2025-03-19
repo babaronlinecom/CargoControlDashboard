@@ -6,7 +6,9 @@ import {
   Package, 
   DollarSign, 
   Plug, 
-  BarChart 
+  BarChart,
+  Receipt,
+  CreditCard
 } from "lucide-react";
 
 interface SidebarProps {
@@ -94,6 +96,32 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
             href="/rate-management" 
             active={location === "/rate-management"} 
           />
+          
+          {/* Financial Management Section */}
+          <li className="mt-6 px-3">
+            <h2 className="mb-2 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Financial Management
+            </h2>
+          </li>
+          <SidebarItem 
+            icon={<Receipt size={18} />} 
+            label="Invoices" 
+            href="/invoices" 
+            active={location === "/invoices"} 
+          />
+          <SidebarItem 
+            icon={<CreditCard size={18} />} 
+            label="Payments" 
+            href="/payments" 
+            active={location === "/payments"} 
+          />
+          
+          {/* Services & Integration Section */}
+          <li className="mt-6 px-3">
+            <h2 className="mb-2 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Services & Integrations
+            </h2>
+          </li>
           <SidebarItem 
             icon={<Plug size={18} />} 
             label="API Integrations" 

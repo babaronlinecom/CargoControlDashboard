@@ -573,6 +573,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch revenue data" });
     }
   });
+  
+  // Payments API (All payments across invoices)
+  app.get("/api/payments", async (req, res) => {
+    try {
+      // Fetch all invoices
+      const invoices = await storage.getInvoices();
+      
+      // Collect all payments for each invoice
+      const allPayments = [];
+      for (const invoice of invoices) {
+        const payments = await storage.getPaymentsByInvoiceId(invoice.id);
+        allPayments.push(...payments);
+      }
+      
+      res.json(allPayments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
 
   // Helper function to call Aramex API and log the request/response
   async function callAramexApi(endpoint: string, data: any) {

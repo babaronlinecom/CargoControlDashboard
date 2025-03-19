@@ -8,6 +8,8 @@ import Shipments from "@/pages/shipments";
 import RateManagement from "@/pages/rate-management";
 import ApiIntegrations from "@/pages/api-integrations";
 import Analytics from "@/pages/analytics";
+import Invoices from "@/pages/invoices";
+import Payments from "@/pages/payments";
 
 function Router() {
   return (
@@ -15,6 +17,8 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/shipments" component={Shipments} />
       <Route path="/rate-management" component={RateManagement} />
+      <Route path="/invoices" component={Invoices} />
+      <Route path="/payments" component={Payments} />
       <Route path="/api-integrations" component={ApiIntegrations} />
       <Route path="/analytics" component={Analytics} />
       <Route component={NotFound} />
