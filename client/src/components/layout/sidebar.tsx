@@ -27,8 +27,8 @@ function SidebarItem({ icon, label, href, active }: SidebarItemProps) {
   return (
     <li className="px-3">
       <Link href={href}>
-        <a 
-          className={`w-full flex items-center px-4 py-2 text-sm rounded-md ${
+        <div 
+          className={`w-full flex items-center px-4 py-2 text-sm rounded-md cursor-pointer ${
             active 
               ? "bg-primary text-white" 
               : "text-gray-700 hover:bg-gray-100"
@@ -45,7 +45,7 @@ function SidebarItem({ icon, label, href, active }: SidebarItemProps) {
         >
           <span className="w-5 h-5 mr-3">{icon}</span>
           <span>{label}</span>
-        </a>
+        </div>
       </Link>
     </li>
   );
