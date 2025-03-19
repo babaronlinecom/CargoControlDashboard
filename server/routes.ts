@@ -11,7 +11,10 @@ import {
   insertShipmentNoteSchema,
   insertRateFileSchema,
   insertRateEntrySchema,
-  insertAramexApiLogSchema
+  insertAramexApiLogSchema,
+  insertInvoiceSchema,
+  insertInvoiceItemSchema,
+  insertPaymentSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -366,6 +369,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(statistics);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch shipment statistics" });
+    }
+  });
+
+  // Invoices API
+  app.get("/api/invoices", async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const dateRange = req.query.dateRange as string | undefined;
+      const invoices = await storage.getInvoices(status, dateRange);
+      res.json(invoices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  app.get("/api/invoices/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const invoice = await storage.getInvoiceById(id);
+      
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoice details" });
+    }
+  });
+
+  app.get("/api/invoices/number/:invoiceNumber", async (req, res) => {
+    try {
+      const invoiceNumber = req.params.invoiceNumber;
+      const invoice = await storage.getInvoiceByNumber(invoiceNumber);
+      
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoice details" });
+    }
+  });
+
+  app.post("/api/invoices", async (req, res) => {
+    try {
+      const validationResult = insertInvoiceSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        const error = fromZodError(validationResult.error);
+        return res.status(400).json({ message: error.message });
+      }
+      
+      const invoice = await storage.createInvoice(validationResult.data);
+      res.status(201).json(invoice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  app.patch("/api/invoices/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const status = req.body.status;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      
+      const invoice = await storage.updateInvoiceStatus(id, status);
+      
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.json(invoice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update invoice status" });
+    }
+  });
+
+  app.get("/api/invoices/:id/items", async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const items = await storage.getInvoiceItems(invoiceId);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoice items" });
+    }
+  });
+
+  app.post("/api/invoices/:id/items", async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const validationResult = insertInvoiceItemSchema.safeParse({
+        ...req.body,
+        invoiceId
+      });
+      
+      if (!validationResult.success) {
+        const error = fromZodError(validationResult.error);
+        return res.status(400).json({ message: error.message });
+      }
+      
+      const item = await storage.addInvoiceItem(validationResult.data);
+      res.status(201).json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add invoice item" });
+    }
+  });
+
+  app.patch("/api/invoices/items/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const item = await storage.updateInvoiceItem(id, updateData);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Invoice item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update invoice item" });
+    }
+  });
+
+  app.delete("/api/invoices/items/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteInvoiceItem(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Invoice item not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete invoice item" });
+    }
+  });
+
+  app.get("/api/invoices/:id/payments", async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const payments = await storage.getPaymentsByInvoiceId(invoiceId);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoice payments" });
+    }
+  });
+
+  app.post("/api/invoices/:id/payments", async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const validationResult = insertPaymentSchema.safeParse({
+        ...req.body,
+        invoiceId
+      });
+      
+      if (!validationResult.success) {
+        const error = fromZodError(validationResult.error);
+        return res.status(400).json({ message: error.message });
+      }
+      
+      const payment = await storage.addPayment(validationResult.data);
+      res.status(201).json(payment);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add payment" });
+    }
+  });
+
+  app.get("/api/invoices/:id/pdf", async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const pdfUrl = await storage.generateInvoicePdf(invoiceId);
+      res.json({ pdfUrl });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate invoice PDF" });
+    }
+  });
+
+  // Financial metrics
+  app.get("/api/financial/metrics", async (req, res) => {
+    try {
+      const timeRange = req.query.timeRange as string || "30days";
+      const metrics = await storage.getFinancialMetrics(timeRange);
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch financial metrics" });
+    }
+  });
+
+  app.get("/api/financial/revenue", async (req, res) => {
+    try {
+      const timeRange = req.query.timeRange as string || "30days";
+      const revenue = await storage.getRevenueByPeriod(timeRange);
+      res.json(revenue);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch revenue data" });
     }
   });
 

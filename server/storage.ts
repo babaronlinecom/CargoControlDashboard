@@ -1467,6 +1467,186 @@ export class MemStorage implements IStorage {
       this.shipmentNotes.set(id, { ...note, id } as ShipmentNote);
     });
     
+    // Sample invoices
+    const sampleInvoices: Partial<Invoice>[] = [
+      {
+        invoiceNumber: "INV-2023-001",
+        awbNumber: "33449959723",
+        status: "paid",
+        issueDate: new Date("2023-08-10"),
+        dueDate: new Date("2023-09-10"),
+        totalAmount: 750.50,
+        currency: "USD",
+        notes: "Priority shipment service",
+        billingAddress: "123 Financial District, Dubai, UAE",
+        shippingAddress: "456 Business Bay, Dubai, UAE",
+        customerName: "Ahmed Al Mansoor",
+        customerEmail: "ahmed@example.com",
+        customerPhone: "+971-50-1234567",
+        pdfUrl: "/invoices/INV-2023-001.pdf"
+      },
+      {
+        invoiceNumber: "INV-2023-002",
+        awbNumber: "33449959724",
+        status: "unpaid",
+        issueDate: new Date("2023-08-15"),
+        dueDate: new Date("2023-09-15"),
+        totalAmount: 458.75,
+        currency: "USD",
+        notes: "Standard international shipping",
+        billingAddress: "789 Sheikh Zayed Road, Dubai, UAE",
+        shippingAddress: "321 Marina District, Dubai, UAE",
+        customerName: "Mohammed Ali",
+        customerEmail: "mohammed@example.com",
+        customerPhone: "+971-55-9876543"
+      },
+      {
+        invoiceNumber: "INV-2023-003",
+        awbNumber: "33449959725",
+        status: "overdue",
+        issueDate: new Date("2023-07-20"),
+        dueDate: new Date("2023-08-20"),
+        totalAmount: 1250.00,
+        currency: "USD",
+        notes: "Express international delivery with insurance",
+        billingAddress: "567 Downtown Area, Dubai, UAE",
+        shippingAddress: "890 Dubai Mall, Dubai, UAE",
+        customerName: "Sara Khan",
+        customerEmail: "sara@example.com",
+        customerPhone: "+971-52-5557777"
+      }
+    ];
+
+    // Sample invoice items
+    const sampleInvoiceItems: Partial<InvoiceItem>[] = [
+      {
+        invoiceId: 1,
+        description: "Express International Shipping (ARX-78294-1)",
+        quantity: 1,
+        unitPrice: 650.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 682.50
+      },
+      {
+        invoiceId: 1,
+        description: "Packaging and Handling Fee",
+        quantity: 1,
+        unitPrice: 50.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 52.50
+      },
+      {
+        invoiceId: 1,
+        description: "Insurance Premium",
+        quantity: 1,
+        unitPrice: 15.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 15.75
+      },
+      {
+        invoiceId: 2,
+        description: "Standard International Shipping (ARX-78294-2)",
+        quantity: 1,
+        unitPrice: 385.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 404.25
+      },
+      {
+        invoiceId: 2,
+        description: "Customs Documentation Fee",
+        quantity: 1,
+        unitPrice: 45.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 47.25
+      },
+      {
+        invoiceId: 2,
+        description: "Tracking Service",
+        quantity: 1,
+        unitPrice: 7.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 7.35
+      },
+      {
+        invoiceId: 3,
+        description: "Premium Express Shipping (ARX-78294-3)",
+        quantity: 1,
+        unitPrice: 950.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 997.50
+      },
+      {
+        invoiceId: 3,
+        description: "Premium Insurance Coverage",
+        quantity: 1,
+        unitPrice: 200.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 210.00
+      },
+      {
+        invoiceId: 3,
+        description: "Priority Handling",
+        quantity: 1,
+        unitPrice: 40.00,
+        taxRate: 5,
+        discount: 0,
+        lineTotal: 42.50
+      }
+    ];
+
+    // Sample payments
+    const samplePayments: Partial<Payment>[] = [
+      {
+        invoiceId: 1,
+        amount: 750.50,
+        paymentDate: new Date("2023-08-25"),
+        paymentMethod: "credit_card",
+        transactionId: "TXN-12345-ABCDE",
+        notes: "Payment received in full",
+        status: "completed",
+        receivedBy: "Online Payment System"
+      },
+      {
+        invoiceId: 3,
+        amount: 500.00,
+        paymentDate: new Date("2023-08-15"),
+        paymentMethod: "bank_transfer",
+        transactionId: "WIRE-67890-FGHIJ",
+        notes: "Partial payment received",
+        status: "completed",
+        receivedBy: "Finance Department"
+      }
+    ];
+
+    // Process sample invoices
+    for (const invoiceData of sampleInvoices) {
+      const id = ++this.currentInvoiceId;
+      const invoice: Invoice = { ...invoiceData, id } as Invoice;
+      this.invoices.set(id, invoice);
+    }
+
+    // Process sample invoice items
+    for (const itemData of sampleInvoiceItems) {
+      const id = ++this.currentInvoiceItemId;
+      const item: InvoiceItem = { ...itemData, id } as InvoiceItem;
+      this.invoiceItems.set(id, item);
+    }
+
+    // Process sample payments
+    for (const paymentData of samplePayments) {
+      const id = ++this.currentPaymentId;
+      const payment: Payment = { ...paymentData, id } as Payment;
+      this.payments.set(id, payment);
+    }
+
     // Sample rate files
     const sampleRateFiles: Partial<RateFile>[] = [
       {
