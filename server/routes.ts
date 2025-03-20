@@ -47,6 +47,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  app.post("/api/shipments/batch", async (req, res) => {
+    try {
+      const shipments = req.body;
+      if (!Array.isArray(shipments)) {
+        return res.status(400).json({ message: "Request body must be an array of shipments" });
+      }
+
+      const createdShipments = await Promise.all(
+        shipments.map(shipment => storage.createShipment(shipment))
+      );
+      
+      res.status(201).json(createdShipments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create batch shipments" });
+    }
+  });
+
   app.get("/api/shipments/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -54,6 +72,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!shipment) {
         return res.status(404).json({ message: "Shipment not found" });
+
+  app.get("/api/shipments/search", async (req, res) => {
+    try {
+      const { query } = req.query;
+      if (!query) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      const shipments = await storage.searchShipments(query as string);
+      res.json(shipments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to search shipments" });
+    }
+  });
+
       }
 
       res.json(shipment);
@@ -64,12 +97,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/shipments", async (req, res) => {
     try {
+
+  app.get("/api/shipments/export", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const shipments = await storage.getShipments();
+      
+      const csvData = shipments.map(s => 
+        `${s.trackingNumber},${s.customerName},${s.status},${s.date}`
+      ).join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=shipments.csv');
+      res.send(`TrackingNumber,Customer,Status,Date\n${csvData}`);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to export shipments" });
+    }
+  });
+
       const validationResult = insertShipmentSchema.safeParse(req.body);
 
       if (!validationResult.success) {
         const error = fromZodError(validationResult.error);
         return res.status(400).json({ message: error.message });
       }
+
+
+  app.post("/api/rates/calculate", async (req, res) => {
+    try {
+      const { origin, destination, weight, serviceType } = req.body;
+      if (!origin || !destination || !weight || !serviceType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const rate = await storage.calculateShippingRate(origin, destination, weight, serviceType);
+      res.json(rate);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to calculate rate" });
+    }
+  });
 
       const shipment = await storage.createShipment(validationResult.data);
       res.status(201).json(shipment);
