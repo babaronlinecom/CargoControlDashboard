@@ -2275,6 +2275,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Shipment methods
+  async searchShipments(params: {
+    status?: string;
+    dateRange?: string;
+    origin?: string;
+    destination?: string;
+    customerName?: string;
+    weight?: { min?: number; max?: number };
+    serviceType?: string;
+  }): Promise<Shipment[]> {
+    let query = db.select().from(shipments);
+
+    if (params.status) {
+      query = query.where(eq(shipments.status, params.status));
+    }
+    if (params.origin) {
+      query = query.where(like(shipments.origin, `%${params.origin}%`));
+    }
+    if (params.destination) {
+      query = query.where(like(shipments.destination, `%${params.destination}%`));
+    }
+    if (params.customerName) {
+      query = query.where(like(shipments.customerName, `%${params.customerName}%`));
+    }
+    if (params.serviceType) {
+      query = query.where(eq(shipments.serviceType, params.serviceType));
+    }
+    if (params.weight?.min) {
+      query = query.where(gte(shipments.weight, params.weight.min));
+    }
+    if (params.weight?.max) {
+      query = query.where(lte(shipments.weight, params.weight.max));
+    }
+
+    const results = await query.orderBy(desc(shipments.date));
+    return this.addNotesToShipments(results);
+  }
+
   async getShipments(status?: string, dateRange?: string): Promise<Shipment[]> {
     let query = db.select().from(shipments);
 
