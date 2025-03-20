@@ -1,4 +1,3 @@
-
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Router, Route, Switch } from "wouter";
 import { Toaster } from "react-hot-toast";
