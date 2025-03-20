@@ -1,37 +1,41 @@
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Router, Route, Switch } from "wouter";
 import { Toaster } from "react-hot-toast";
 import { queryClient } from "./lib/queryClient";
+import Navbar from "./components/layout/navbar";
 import Home from "./pages/home";
 import Dashboard from "./pages/dashboard";
 import Shipments from "./pages/shipments";
 import RateManagement from "./pages/rate-management";
-import Invoices from "./pages/invoices";
-import Navbar from "./components/layout/navbar";
-import NotFound from "@/pages/not-found";
-import ApiIntegrations from "@/pages/api-integrations";
-import Analytics from "@/pages/analytics";
-import Payments from "@/pages/payments";
-
+import Tracking from "./pages/tracking";
+import About from "./pages/about";
+import Contact from "./pages/contact";
+import Services from "./pages/services";
+import NotFound from "./pages/not-found";
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <Navbar />
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/shipments" component={Shipments} />
-          <Route path="/rate-management" component={RateManagement} />
-          <Route path="/invoices" component={Invoices} />
-          <Route path="/api-integrations" component={ApiIntegrations} />
-          <Route path="/analytics" component={Analytics} />
-          <Route path="/payments" component={Payments} />
-          <Route component={NotFound} />
-        </Switch>
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main>
+            <Switch>
+              <Route path="/" component={Home} />
+              <Route path="/tracking" component={Tracking} />
+              <Route path="/services" component={Services} />
+              <Route path="/about" component={About} />
+              <Route path="/contact" component={Contact} />
+              <Route path="/dashboard" component={Dashboard} />
+              <Route path="/shipments" component={Shipments} />
+              <Route path="/rate-management" component={RateManagement} />
+              <Route component={NotFound} />
+            </Switch>
+          </main>
+        </div>
       </Router>
-      <Toaster />
+      <Toaster position="top-right" />
     </QueryClientProvider>
   );
 }
