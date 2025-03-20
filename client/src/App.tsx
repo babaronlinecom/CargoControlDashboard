@@ -14,9 +14,11 @@ import Payments from "@/pages/payments";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/dashboard" component={Dashboard} />
+    <>
+      <Navbar />
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/dashboard" component={Dashboard} />
       <Route path="/shipments" component={Shipments} />
       <Route path="/rate-management" component={RateManagement} />
       <Route path="/invoices" component={Invoices} />
