@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Shipments from "@/pages/shipments";
 import RateManagement from "@/pages/rate-management";
@@ -14,7 +15,8 @@ import Payments from "@/pages/payments";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Landing} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/shipments" component={Shipments} />
       <Route path="/rate-management" component={RateManagement} />
       <Route path="/invoices" component={Invoices} />
