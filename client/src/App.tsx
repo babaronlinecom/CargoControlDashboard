@@ -12,6 +12,9 @@ import About from "./pages/about";
 import Contact from "./pages/contact";
 import Services from "./pages/services";
 import NotFound from "./pages/not-found";
+import Shipping from "./pages/shipping"; // Added import
+import Solutions from "./pages/solutions"; // Added import
+import Locations from "./pages/locations"; // Added import
 
 export default function App() {
   return (
@@ -23,6 +26,9 @@ export default function App() {
             <Switch>
               <Route path="/" component={Home} />
               <Route path="/tracking" component={Tracking} />
+              <Route path="/shipping" component={Shipping} />
+              <Route path="/solutions" component={Solutions} />
+              <Route path="/locations" component={Locations} />
               <Route path="/services" component={Services} />
               <Route path="/about" component={About} />
               <Route path="/contact" component={Contact} />
