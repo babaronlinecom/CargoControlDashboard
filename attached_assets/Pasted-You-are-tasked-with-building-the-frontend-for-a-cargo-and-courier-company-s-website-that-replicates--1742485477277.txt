@@ -1,0 +1,43 @@
+You are tasked with building the frontend for a cargo and courier company's website that replicates the design, layout, and user experience of the Aramex website (https://www.aramex.com/). The goal is to create a modern, responsive, and visually appealing site using Jamstack principles.
+
+Key Requirements:
+1. **Design & Layout:**
+   - Replicate the overall design aesthetic of the Aramex website, including the header, navigation menus, hero section, and footer.
+   - Ensure the design is fully responsive across desktop, tablet, and mobile devices.
+   - Use modern CSS frameworks (e.g., Tailwind CSS or Bootstrap) to achieve a clean, professional look.
+
+2. **Static Site Generation:**
+   - Use a static site generator like Next.js or Gatsby to build the site.
+   - Pre-render as many pages as possible to ensure fast load times and SEO benefits.
+
+3. **Navigation & Content Structure:**
+   - Create a multi-level navigation menu similar to Aramex, with dropdowns and clear categorization of services.
+   - Build several key pages:
+     - Home page with a prominent hero section, service overviews, and call-to-action buttons.
+     - Services page detailing different logistics solutions.
+     - Shipment tracking page that includes an interactive search component.
+     - About page with company history and values.
+     - Contact page with a form and map integration.
+
+4. **UI Components:**
+   - Develop reusable UI components (buttons, cards, forms, modals) that mirror the styling and interactivity of the Aramex site.
+   - Ensure accessibility best practices are followed (e.g., proper alt texts, keyboard navigability).
+
+5. **Animations & Interactivity:**
+   - Include subtle animations and transitions (e.g., hover effects, scroll animations) to enhance user experience.
+   - Implement a dynamic shipment tracking search bar that provides autocomplete suggestions as the user types.
+
+6. **Integration with Backend & APIs:**
+   - Set up client-side API calls to interact with backend services (e.g., shipment tracking, rate calculations) where needed.
+   - Use serverless functions if necessary to handle any dynamic data fetching.
+
+7. **Performance & SEO:**
+   - Optimize the site for fast load times using static generation, lazy loading of images, and efficient caching strategies.
+   - Ensure the site is SEO-friendly with proper meta tags, schema markup, and a sitemap.
+
+8. **Development & Deployment:**
+   - Use version control (Git) to manage code changes.
+   - Deploy the site on a Jamstack-friendly platform like Netlify or Vercel.
+   - Set up continuous integration/deployment to automatically build and deploy changes.
+
+Generate code templates, component stubs, and style guidelines as needed to create a frontend that not only mimics the Aramex website but also meets modern web standards for performance, responsiveness, and accessibility.
